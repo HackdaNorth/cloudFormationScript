@@ -1,0 +1,138 @@
+# CloudFormation template creates a VPC with 2 subnets and 1 NAT gateway
+# Section Resources
+Parameters:
+# parameter VPC CIDR block or IP address space
+  VPCidr:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: this is the VPC IP address space or CIDR
+  AZ1:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: us-east-1a
+    Description: Choose an availability zone from a drop menu or get the default
+  AZ2:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: us-east-1b
+    Description: Choose an availability zone from a drop menu or get the default
+  SN1cidr:
+    Type: String
+    Default: 10.0.1.0/24
+    Description: this is the public subnet CIDR
+  SN2cidr:
+    Type: String
+    Default: 10.0.2.0/24
+    Description: this is the public subnet CIDR
+#####################
+Resources:
+# Create a VPC
+  VPC1:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value: VPC1
+# Create an Internet Gateway
+  IGW:
+    Type: AWS::EC2::InternetGateway
+    DependsOn: VPC1
+# Attach Internet gateway and the VPC
+  IGWattachVPC:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC1
+      InternetGatewayId: !Ref IGW
+# Create a Public Subnet call PublicSN
+  PublicSN:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC1
+      CidrBlock: !Ref SN1cidr
+      AvailabilityZone: !Ref AZ1
+      Tags:
+      - Key: Name
+        Value: PublicSN
+# Create a public route table
+  PublicRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC1
+      Tags:
+      - Key: Name
+        Value: PublicRT
+# Create a route for the public route table
+  RoutePublic:
+    Type: AWS::EC2::Route
+    DependsOn: IGWattachVPC
+    Properties:
+      RouteTableId: !Ref PublicRT
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+# Associate the the routes with the route table
+  PublicRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSN
+      RouteTableId: !Ref PublicRT
+# Create a private subnet
+  PrivateSN:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC1
+      CidrBlock: !Ref SN2cidr
+      AvailabilityZone: !Ref AZ2
+      Tags:
+      - Key: Name
+        Value: PrivateSN
+# Create Elastic IP address
+  EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: VPC1
+# Create NAT gateway
+  NAT:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt EIP.AllocationId
+      SubnetId: !Ref PublicSN
+      Tags:
+      - Key: Name
+        Value: natgw
+# Create Private Route Table
+  PrivateRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC1
+      Tags:
+      - Key: Name
+        Value: PrivateRT
+# Create route for the private route table
+  RoutePrivate:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRT
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NAT
+# Associate the private subnet and the private route table
+  PrivateRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSN
+      RouteTableId: !Ref PrivateRT
+
+    
+  
+
+
+
+
+      
+
+
+
+
+
+
+  
